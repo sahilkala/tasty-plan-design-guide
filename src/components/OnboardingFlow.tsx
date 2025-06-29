@@ -1,13 +1,16 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ChefHat, ArrowRight, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
-const OnboardingFlow = () => {
+interface OnboardingFlowProps {
+  onComplete?: () => void;
+}
+
+const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [preferences, setPreferences] = useState({
     cuisines: [] as string[],
@@ -15,6 +18,7 @@ const OnboardingFlow = () => {
     goals: [] as string[]
   });
   const { toast } = useToast();
+  const { updateUserPreferences } = useAuth();
 
   const steps = [
     "Welcome",
@@ -74,10 +78,23 @@ const OnboardingFlow = () => {
   };
 
   const completeOnboarding = () => {
+    // Save preferences to user context
+    updateUserPreferences({
+      dietaryRestrictions: preferences.restrictions,
+      cuisines: preferences.cuisines,
+      goals: preferences.goals,
+      allergies: []
+    });
+
     toast({
       title: "Profile created successfully!",
       description: "We're generating your first personalized meal plan.",
     });
+
+    // Close the onboarding flow
+    if (onComplete) {
+      onComplete();
+    }
   };
 
   const renderStepContent = () => {

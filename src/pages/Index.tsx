@@ -2,23 +2,23 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Clock, Users, ChefHat, ShoppingCart, Heart, Star, Table, User, LogOut } from "lucide-react";
+import { CalendarDays, Clock, Users, ChefHat, ShoppingCart, Heart, Star, Table, User, LogOut, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import WeeklyPlanView from "@/components/WeeklyPlanView";
 import MealPlanTable from "@/components/MealPlanTable";
 import OnboardingFlow from "@/components/OnboardingFlow";
+import { PlanGenerationFlow } from "@/components/PlanGenerationFlow";
 import { AuthModal } from "@/components/AuthModal";
 import { UserStateHandler } from "@/components/UserStateHandler";
-import { PlanDurationSelector } from "@/components/PlanDurationSelector";
 
 const Index = () => {
   const [currentWeek, setCurrentWeek] = useState(0);
   const [activeTab, setActiveTab] = useState("meal-plans");
   const [viewMode, setViewMode] = useState("card");
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showPlanGeneration, setShowPlanGeneration] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [selectedDuration, setSelectedDuration] = useState(1);
   const { toast } = useToast();
   const { user, logout } = useAuth();
 
@@ -60,13 +60,8 @@ const Index = () => {
   const handleGeneratePlan = () => {
     if (!user) {
       setShowOnboarding(true);
-    } else if (!user.preferences) {
-      setShowOnboarding(true);
     } else {
-      toast({
-        title: "Generating meal plan...",
-        description: `Creating your ${selectedDuration}-week personalized meal plan`,
-      });
+      setShowPlanGeneration(true);
     }
   };
 
@@ -93,24 +88,29 @@ const Index = () => {
     return "Premium User";
   };
 
+  const mockGroceryItems = [
+    { id: 1, name: "Salmon fillet", category: "Protein", checked: false },
+    { id: 2, name: "Quinoa", category: "Grains", checked: true },
+    { id: 3, name: "Cucumber", category: "Vegetables", checked: false },
+    { id: 4, name: "Coconut milk", category: "Pantry", checked: false },
+    { id: 5, name: "Bell peppers", category: "Vegetables", checked: true },
+  ];
+
+  const mockMealHistory = [
+    { id: 1, name: "Mediterranean Bowl", date: "2024-01-15", rating: 5 },
+    { id: 2, name: "Thai Curry", date: "2024-01-10", rating: 4 },
+    { id: 3, name: "Pasta Primavera", date: "2024-01-08", rating: 5 },
+  ];
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "meal-plans":
         return (
           <div>
-            <div className="mb-6">
-              <PlanDurationSelector 
-                selectedDuration={selectedDuration}
-                onDurationChange={setSelectedDuration}
-              />
-            </div>
-
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center space-x-4">
                 <CalendarDays className="w-6 h-6 text-gray-600" />
-                <h2 className="text-2xl font-semibold text-gray-900">
-                  {selectedDuration === 1 ? "This Week's" : `${selectedDuration}-Week`} Meal Plan
-                </h2>
+                <h2 className="text-2xl font-semibold text-gray-900">Weekly Meal Plan</h2>
               </div>
               <div className="flex items-center space-x-2">
                 <Button 
@@ -143,7 +143,6 @@ const Index = () => {
               <>
                 {/* Today's Highlight */}
                 <Card className="mb-8 border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-red-50">
-                  {/* ... keep existing code (Today's Featured Meal section) */}
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
@@ -234,7 +233,25 @@ const Index = () => {
                 <CardDescription>Your shopping list for this week's meals</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">Your grocery list will appear here once you add ingredients from meal plans.</p>
+                <div className="space-y-4">
+                  {mockGroceryItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <input 
+                          type="checkbox" 
+                          checked={item.checked}
+                          className="rounded"
+                        />
+                        <div>
+                          <p className={`font-medium ${item.checked ? 'line-through text-gray-500' : ''}`}>
+                            {item.name}
+                          </p>
+                          <p className="text-sm text-gray-500">{item.category}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </UserStateHandler>
@@ -248,7 +265,24 @@ const Index = () => {
                 <CardDescription>Your past meal plans and favorites</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">Your meal history will be displayed here.</p>
+                <div className="space-y-4">
+                  {mockMealHistory.map((meal) => (
+                    <div key={meal.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h4 className="font-medium">{meal.name}</h4>
+                        <p className="text-sm text-gray-500">{meal.date}</p>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star 
+                            key={i} 
+                            className={`w-4 h-4 ${i < meal.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </UserStateHandler>
@@ -261,8 +295,65 @@ const Index = () => {
                 <CardTitle>Profile & Settings</CardTitle>
                 <CardDescription>Manage your preferences and dietary requirements</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">Profile settings and dietary preferences will be available here.</p>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="font-semibold mb-3">Account Information</h3>
+                  <div className="space-y-2">
+                    <p><span className="font-medium">Name:</span> {user?.name}</p>
+                    <p><span className="font-medium">Email:</span> {user?.email}</p>
+                    <p><span className="font-medium">Plan:</span> {user?.isSubscribed ? 'Premium' : 'Free'}</p>
+                    <p><span className="font-medium">Member since:</span> {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</p>
+                  </div>
+                </div>
+
+                {user?.preferences && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Dietary Preferences</h3>
+                    <div className="space-y-3">
+                      {user.preferences.cuisines && user.preferences.cuisines.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-1">Favorite Cuisines:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {user.preferences.cuisines.map((cuisine, index) => (
+                              <Badge key={index} variant="secondary">{cuisine}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {user.preferences.dietaryRestrictions && user.preferences.dietaryRestrictions.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-1">Dietary Restrictions:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {user.preferences.dietaryRestrictions.map((restriction, index) => (
+                              <Badge key={index} variant="outline">{restriction}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {user.preferences.goals && user.preferences.goals.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-1">Health Goals:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {user.preferences.goals.map((goal, index) => (
+                              <Badge key={index} className="bg-green-100 text-green-800">{goal}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-4 border-t">
+                  <Button 
+                    onClick={() => setShowOnboarding(true)}
+                    variant="outline"
+                    className="flex items-center space-x-2"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span>Update Preferences</span>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </UserStateHandler>
@@ -425,7 +516,15 @@ const Index = () => {
       {showOnboarding && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <OnboardingFlow />
+            <OnboardingFlow onComplete={() => setShowOnboarding(false)} />
+          </div>
+        </div>
+      )}
+
+      {showPlanGeneration && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <PlanGenerationFlow onComplete={() => setShowPlanGeneration(false)} />
           </div>
         </div>
       )}
