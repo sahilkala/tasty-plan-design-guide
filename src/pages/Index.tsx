@@ -1,18 +1,26 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Clock, Users, ChefHat, ShoppingCart, Heart, Star, Table } from "lucide-react";
+import { CalendarDays, Clock, Users, ChefHat, ShoppingCart, Heart, Star, Table, User, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import WeeklyPlanView from "@/components/WeeklyPlanView";
 import MealPlanTable from "@/components/MealPlanTable";
+import OnboardingFlow from "@/components/OnboardingFlow";
+import { AuthModal } from "@/components/AuthModal";
+import { UserStateHandler } from "@/components/UserStateHandler";
+import { PlanDurationSelector } from "@/components/PlanDurationSelector";
 
 const Index = () => {
   const [currentWeek, setCurrentWeek] = useState(0);
   const [activeTab, setActiveTab] = useState("meal-plans");
-  const [viewMode, setViewMode] = useState("card"); // "card" or "table"
+  const [viewMode, setViewMode] = useState("card");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [selectedDuration, setSelectedDuration] = useState(1);
   const { toast } = useToast();
+  const { user, logout } = useAuth();
 
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   
@@ -50,10 +58,16 @@ const Index = () => {
   ];
 
   const handleGeneratePlan = () => {
-    toast({
-      title: "Generating meal plan...",
-      description: "Creating personalized meals based on your preferences",
-    });
+    if (!user) {
+      setShowOnboarding(true);
+    } else if (!user.preferences) {
+      setShowOnboarding(true);
+    } else {
+      toast({
+        title: "Generating meal plan...",
+        description: `Creating your ${selectedDuration}-week personalized meal plan`,
+      });
+    }
   };
 
   const handleAddToGrocery = (mealName: string) => {
@@ -73,15 +87,30 @@ const Index = () => {
   const nextWeek = () => setCurrentWeek(prev => prev + 1);
   const prevWeek = () => setCurrentWeek(prev => Math.max(0, prev - 1));
 
+  const getUserStateDisplay = () => {
+    if (!user) return "Visitor";
+    if (!user.isSubscribed) return "Free User";
+    return "Premium User";
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "meal-plans":
         return (
           <div>
+            <div className="mb-6">
+              <PlanDurationSelector 
+                selectedDuration={selectedDuration}
+                onDurationChange={setSelectedDuration}
+              />
+            </div>
+
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center space-x-4">
                 <CalendarDays className="w-6 h-6 text-gray-600" />
-                <h2 className="text-2xl font-semibold text-gray-900">This Week's Meal Plan</h2>
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  {selectedDuration === 1 ? "This Week's" : `${selectedDuration}-Week`} Meal Plan
+                </h2>
               </div>
               <div className="flex items-center space-x-2">
                 <Button 
@@ -114,6 +143,7 @@ const Index = () => {
               <>
                 {/* Today's Highlight */}
                 <Card className="mb-8 border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-red-50">
+                  {/* ... keep existing code (Today's Featured Meal section) */}
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
@@ -159,23 +189,27 @@ const Index = () => {
                           </div>
                         </div>
                         <div className="flex space-x-3">
-                          <Button 
-                            onClick={() => handleAddToGrocery(mealPlans[0].name)}
-                            variant="outline" 
-                            size="sm"
-                            className="flex items-center space-x-1"
-                          >
-                            <ShoppingCart className="w-4 h-4" />
-                            <span>Add to Grocery</span>
-                          </Button>
-                          <Button 
-                            onClick={() => handleSaveRecipe(mealPlans[0].name)}
-                            size="sm" 
-                            className="flex items-center space-x-1"
-                          >
-                            <Heart className="w-4 h-4" />
-                            <span>Save Recipe</span>
-                          </Button>
+                          <UserStateHandler requiredState="signed-up" feature="Grocery List">
+                            <Button 
+                              onClick={() => handleAddToGrocery(mealPlans[0].name)}
+                              variant="outline" 
+                              size="sm"
+                              className="flex items-center space-x-1"
+                            >
+                              <ShoppingCart className="w-4 h-4" />
+                              <span>Add to Grocery</span>
+                            </Button>
+                          </UserStateHandler>
+                          <UserStateHandler requiredState="signed-up" feature="Save Recipe">
+                            <Button 
+                              onClick={() => handleSaveRecipe(mealPlans[0].name)}
+                              size="sm" 
+                              className="flex items-center space-x-1"
+                            >
+                              <Heart className="w-4 h-4" />
+                              <span>Save Recipe</span>
+                            </Button>
+                          </UserStateHandler>
                         </div>
                       </div>
                     </div>
@@ -185,45 +219,53 @@ const Index = () => {
                 <WeeklyPlanView />
               </>
             ) : (
-              <MealPlanTable mealPlans={mealPlans} weekDays={weekDays} />
+              <UserStateHandler requiredState="signed-up" feature="Table View">
+                <MealPlanTable mealPlans={mealPlans} weekDays={weekDays} />
+              </UserStateHandler>
             )}
           </div>
         );
       case "grocery-list":
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Grocery List</CardTitle>
-              <CardDescription>Your shopping list for this week's meals</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">Your grocery list will appear here once you add ingredients from meal plans.</p>
-            </CardContent>
-          </Card>
+          <UserStateHandler requiredState="signed-up" feature="Grocery List">
+            <Card>
+              <CardHeader>
+                <CardTitle>Grocery List</CardTitle>
+                <CardDescription>Your shopping list for this week's meals</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">Your grocery list will appear here once you add ingredients from meal plans.</p>
+              </CardContent>
+            </Card>
+          </UserStateHandler>
         );
       case "history":
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Meal History</CardTitle>
-              <CardDescription>Your past meal plans and favorites</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">Your meal history will be displayed here.</p>
-            </CardContent>
-          </Card>
+          <UserStateHandler requiredState="signed-up" feature="Meal History">
+            <Card>
+              <CardHeader>
+                <CardTitle>Meal History</CardTitle>
+                <CardDescription>Your past meal plans and favorites</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">Your meal history will be displayed here.</p>
+              </CardContent>
+            </Card>
+          </UserStateHandler>
         );
       case "profile":
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile & Settings</CardTitle>
-              <CardDescription>Manage your preferences and dietary requirements</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600">Profile settings and dietary preferences will be available here.</p>
-            </CardContent>
-          </Card>
+          <UserStateHandler requiredState="signed-up" feature="Profile Settings">
+            <Card>
+              <CardHeader>
+                <CardTitle>Profile & Settings</CardTitle>
+                <CardDescription>Manage your preferences and dietary requirements</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">Profile settings and dietary preferences will be available here.</p>
+              </CardContent>
+            </Card>
+          </UserStateHandler>
         );
       default:
         return null;
@@ -245,9 +287,28 @@ const Index = () => {
                 <p className="text-sm text-gray-600">Personalized nutrition made simple</p>
               </div>
             </div>
-            <Button onClick={handleGeneratePlan} className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600">
-              Generate New Plan
-            </Button>
+            <div className="flex items-center space-x-4">
+              {user && (
+                <div className="flex items-center space-x-2">
+                  <Badge variant="secondary">{getUserStateDisplay()}</Badge>
+                  <span className="text-sm text-gray-600">Hello, {user.name}</span>
+                </div>
+              )}
+              <Button onClick={handleGeneratePlan} className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600">
+                {user ? 'Generate New Plan' : 'Generate My Free Meal Plan'}
+              </Button>
+              {user ? (
+                <Button onClick={logout} variant="outline" size="sm">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              ) : (
+                <Button onClick={() => setShowAuthModal(true)} variant="outline">
+                  <User className="w-4 h-4 mr-2" />
+                  Sign In
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -313,21 +374,33 @@ const Index = () => {
                 Unlock unlimited meal plans, grocery integration, and personalized recommendations
               </p>
               <div className="flex justify-center space-x-4">
-                <Button 
-                  variant="secondary" 
-                  size="lg"
-                  onClick={() => toast({ title: "Sign up", description: "Redirecting to sign up..." })}
-                >
-                  Sign Up Free
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="lg"
-                  className="border-white text-white hover:bg-white hover:text-gray-900"
-                  onClick={() => toast({ title: "Premium features", description: "Learn about premium features..." })}
-                >
-                  View Premium Features
-                </Button>
+                {!user ? (
+                  <>
+                    <Button 
+                      variant="secondary" 
+                      size="lg"
+                      onClick={() => setShowAuthModal(true)}
+                    >
+                      Sign Up Free
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="lg"
+                      className="border-white text-white hover:bg-white hover:text-gray-900"
+                      onClick={() => toast({ title: "Premium features", description: "Learn about premium features..." })}
+                    >
+                      View Premium Features
+                    </Button>
+                  </>
+                ) : !user.isSubscribed ? (
+                  <Button 
+                    variant="secondary" 
+                    size="lg"
+                    onClick={() => toast({ title: "Premium features", description: "Learn about premium features..." })}
+                  >
+                    Upgrade to Premium
+                  </Button>
+                ) : null}
               </div>
             </CardContent>
           </Card>
@@ -342,6 +415,20 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      {/* Modals */}
+      <AuthModal 
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
+      
+      {showOnboarding && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <OnboardingFlow />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
