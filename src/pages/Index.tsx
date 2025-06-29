@@ -3,11 +3,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Clock, Users, ChefHat, ShoppingCart, Heart, Star } from "lucide-react";
+import { CalendarDays, Clock, Users, ChefHat, ShoppingCart, Heart, Star, Table } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import WeeklyPlanView from "@/components/WeeklyPlanView";
+import MealPlanTable from "@/components/MealPlanTable";
 
 const Index = () => {
   const [currentWeek, setCurrentWeek] = useState(0);
+  const [activeTab, setActiveTab] = useState("meal-plans");
+  const [viewMode, setViewMode] = useState("card"); // "card" or "table"
   const { toast } = useToast();
 
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -59,6 +63,173 @@ const Index = () => {
     });
   };
 
+  const handleSaveRecipe = (mealName: string) => {
+    toast({
+      title: "Recipe saved",
+      description: `${mealName} has been saved to your favorites`,
+    });
+  };
+
+  const nextWeek = () => setCurrentWeek(prev => prev + 1);
+  const prevWeek = () => setCurrentWeek(prev => Math.max(0, prev - 1));
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "meal-plans":
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center space-x-4">
+                <CalendarDays className="w-6 h-6 text-gray-600" />
+                <h2 className="text-2xl font-semibold text-gray-900">This Week's Meal Plan</h2>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button 
+                  onClick={prevWeek} 
+                  variant="outline" 
+                  size="sm"
+                  disabled={currentWeek === 0}
+                >
+                  Previous
+                </Button>
+                <span className="px-4 py-2 text-sm font-medium bg-white rounded-md border">
+                  Week {currentWeek + 1}
+                </span>
+                <Button onClick={nextWeek} variant="outline" size="sm">
+                  Next
+                </Button>
+                <Button
+                  onClick={() => setViewMode(viewMode === "card" ? "table" : "card")}
+                  variant="outline"
+                  size="sm"
+                  className="ml-4"
+                >
+                  <Table className="w-4 h-4 mr-2" />
+                  {viewMode === "card" ? "Table View" : "Card View"}
+                </Button>
+              </div>
+            </div>
+
+            {viewMode === "card" ? (
+              <>
+                {/* Today's Highlight */}
+                <Card className="mb-8 border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-red-50">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-xl text-orange-800">Today's Featured Meal</CardTitle>
+                        <CardDescription className="text-orange-600">
+                          Ready in 25 minutes • Perfect for dinner
+                        </CardDescription>
+                      </div>
+                      <Star className="w-8 h-8 text-orange-500" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div>
+                        <img 
+                          src={mealPlans[0].image} 
+                          alt={mealPlans[0].name}
+                          className="w-full h-48 object-cover rounded-lg shadow-md"
+                        />
+                      </div>
+                      <div className="space-y-4">
+                        <h3 className="text-2xl font-bold text-gray-900">{mealPlans[0].name}</h3>
+                        <p className="text-gray-600">{mealPlans[0].description}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {mealPlans[0].tags.map((tag, index) => (
+                            <Badge key={index} variant="secondary" className="bg-orange-100 text-orange-800">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex items-center space-x-6 text-sm text-gray-600">
+                          <div className="flex items-center space-x-1">
+                            <span className="font-medium">{mealPlans[0].calories}</span>
+                            <span>calories</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-4 h-4" />
+                            <span>{mealPlans[0].time}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Users className="w-4 h-4" />
+                            <span>{mealPlans[0].servings} servings</span>
+                          </div>
+                        </div>
+                        <div className="flex space-x-3">
+                          <Button 
+                            onClick={() => handleAddToGrocery(mealPlans[0].name)}
+                            variant="outline" 
+                            size="sm"
+                            className="flex items-center space-x-1"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                            <span>Add to Grocery</span>
+                          </Button>
+                          <Button 
+                            onClick={() => handleSaveRecipe(mealPlans[0].name)}
+                            size="sm" 
+                            className="flex items-center space-x-1"
+                          >
+                            <Heart className="w-4 h-4" />
+                            <span>Save Recipe</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <WeeklyPlanView />
+              </>
+            ) : (
+              <MealPlanTable mealPlans={mealPlans} weekDays={weekDays} />
+            )}
+          </div>
+        );
+      case "grocery-list":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Grocery List</CardTitle>
+              <CardDescription>Your shopping list for this week's meals</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">Your grocery list will appear here once you add ingredients from meal plans.</p>
+            </CardContent>
+          </Card>
+        );
+      case "history":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Meal History</CardTitle>
+              <CardDescription>Your past meal plans and favorites</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">Your meal history will be displayed here.</p>
+            </CardContent>
+          </Card>
+        );
+      case "profile":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile & Settings</CardTitle>
+              <CardDescription>Manage your preferences and dietary requirements</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">Profile settings and dietary preferences will be available here.</p>
+            </CardContent>
+          </Card>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
       {/* Header */}
@@ -85,16 +256,44 @@ const Index = () => {
       <nav className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex space-x-8">
-            <button className="py-4 px-2 border-b-2 border-orange-500 text-orange-600 font-medium">
+            <button 
+              onClick={() => setActiveTab("meal-plans")}
+              className={`py-4 px-2 border-b-2 font-medium ${
+                activeTab === "meal-plans" 
+                  ? "border-orange-500 text-orange-600" 
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
               Meal Plans
             </button>
-            <button className="py-4 px-2 text-gray-500 hover:text-gray-700 font-medium">
+            <button 
+              onClick={() => setActiveTab("grocery-list")}
+              className={`py-4 px-2 border-b-2 font-medium ${
+                activeTab === "grocery-list" 
+                  ? "border-orange-500 text-orange-600" 
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
               Grocery List
             </button>
-            <button className="py-4 px-2 text-gray-500 hover:text-gray-700 font-medium">
+            <button 
+              onClick={() => setActiveTab("history")}
+              className={`py-4 px-2 border-b-2 font-medium ${
+                activeTab === "history" 
+                  ? "border-orange-500 text-orange-600" 
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
               History
             </button>
-            <button className="py-4 px-2 text-gray-500 hover:text-gray-700 font-medium">
+            <button 
+              onClick={() => setActiveTab("profile")}
+              className={`py-4 px-2 border-b-2 font-medium ${
+                activeTab === "profile" 
+                  ? "border-orange-500 text-orange-600" 
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
               Profile
             </button>
           </div>
@@ -103,147 +302,36 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Week Navigation */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <CalendarDays className="w-6 h-6 text-gray-600" />
-            <h2 className="text-2xl font-semibold text-gray-900">This Week's Meal Plan</h2>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm">Previous</Button>
-            <span className="px-4 py-2 text-sm font-medium bg-white rounded-md border">
-              Week {currentWeek + 1}
-            </span>
-            <Button variant="outline" size="sm">Next</Button>
-          </div>
-        </div>
+        {renderTabContent()}
 
-        {/* Today's Highlight */}
-        <Card className="mb-8 border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-red-50">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl text-orange-800">Today's Featured Meal</CardTitle>
-                <CardDescription className="text-orange-600">
-                  Ready in 25 minutes • Perfect for dinner
-                </CardDescription>
+        {/* CTA Section - only show on meal plans tab */}
+        {activeTab === "meal-plans" && (
+          <Card className="mt-12 bg-gradient-to-r from-gray-900 to-gray-800 text-white">
+            <CardContent className="p-8 text-center">
+              <h3 className="text-2xl font-bold mb-2">Ready for More?</h3>
+              <p className="text-gray-300 mb-6">
+                Unlock unlimited meal plans, grocery integration, and personalized recommendations
+              </p>
+              <div className="flex justify-center space-x-4">
+                <Button 
+                  variant="secondary" 
+                  size="lg"
+                  onClick={() => toast({ title: "Sign up", description: "Redirecting to sign up..." })}
+                >
+                  Sign Up Free
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  className="border-white text-white hover:bg-white hover:text-gray-900"
+                  onClick={() => toast({ title: "Premium features", description: "Learn about premium features..." })}
+                >
+                  View Premium Features
+                </Button>
               </div>
-              <Star className="w-8 h-8 text-orange-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <img 
-                  src={mealPlans[0].image} 
-                  alt={mealPlans[0].name}
-                  className="w-full h-48 object-cover rounded-lg shadow-md"
-                />
-              </div>
-              <div className="space-y-4">
-                <h3 className="text-2xl font-bold text-gray-900">{mealPlans[0].name}</h3>
-                <p className="text-gray-600">{mealPlans[0].description}</p>
-                <div className="flex flex-wrap gap-2">
-                  {mealPlans[0].tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="bg-orange-100 text-orange-800">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex items-center space-x-6 text-sm text-gray-600">
-                  <div className="flex items-center space-x-1">
-                    <span className="font-medium">{mealPlans[0].calories}</span>
-                    <span>calories</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Clock className="w-4 h-4" />
-                    <span>{mealPlans[0].time}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Users className="w-4 h-4" />
-                    <span>{mealPlans[0].servings} servings</span>
-                  </div>
-                </div>
-                <div className="flex space-x-3">
-                  <Button 
-                    onClick={() => handleAddToGrocery(mealPlans[0].name)}
-                    variant="outline" 
-                    size="sm"
-                    className="flex items-center space-x-1"
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    <span>Add to Grocery</span>
-                  </Button>
-                  <Button size="sm" className="flex items-center space-x-1">
-                    <Heart className="w-4 h-4" />
-                    <span>Save Recipe</span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Weekly Meal Grid */}
-        <div className="grid gap-6">
-          <h3 className="text-xl font-semibold text-gray-900">Weekly Overview</h3>
-          <div className="grid gap-4">
-            {weekDays.map((day, dayIndex) => (
-              <Card key={day} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-gray-900">{day}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    {mealPlans.slice(0, 3).map((meal, mealIndex) => (
-                      <div key={meal.id} className="group cursor-pointer">
-                        <div className="relative overflow-hidden rounded-lg">
-                          <img 
-                            src={meal.image} 
-                            alt={meal.name}
-                            className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-200"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity" />
-                        </div>
-                        <div className="mt-2">
-                          <h4 className="font-medium text-gray-900 text-sm group-hover:text-orange-600 transition-colors">
-                            {meal.name}
-                          </h4>
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-xs text-gray-500">{meal.calories} cal</span>
-                            <span className="text-xs text-gray-500">{meal.time}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* CTA Section */}
-        <Card className="mt-12 bg-gradient-to-r from-gray-900 to-gray-800 text-white">
-          <CardContent className="p-8 text-center">
-            <h3 className="text-2xl font-bold mb-2">Ready for More?</h3>
-            <p className="text-gray-300 mb-6">
-              Unlock unlimited meal plans, grocery integration, and personalized recommendations
-            </p>
-            <div className="flex justify-center space-x-4">
-              <Button variant="secondary" size="lg">
-                Sign Up Free
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg"
-                className="border-white text-white hover:bg-white hover:text-gray-900"
-              >
-                View Premium Features
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </main>
 
       {/* Footer */}
